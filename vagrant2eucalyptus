@@ -1,0 +1,68 @@
+# Converting Vagrant images to VirtualBox and Eucalyptus images
+
+(protocol steps tested in Ubuntu Natty)
+
+## software pre-requisite
+
+    sudo gem install vagrant
+    sudo apt-get install cloud-utils
+
+## Importing cloud biolinux VM to your system
+
+    vagrant box add base 
+    https://s3.amazonaws.com/cloudbiolinux/cbl_ubuntu_11_4_32_20110628.box
+    vagrant init base
+    vagrant up
+
+## adding some missing components to the vagrant VMs 
+
+    vagrant ssh
+    sudo apt-get install gdm cloud-utils openssh
+    sudo useradd -d /home/ubuntu -m ubuntusudo passwd ubuntu
+    sudo shutdown -r now
+
+in the graphical login after reboot get in with user:ubuntu / pass:ubuntu
+go to System--->Administration--->Login Window to enable autologin
+
+## making a virtualbox appliance
+
+open the Virtualbox GUI, you should see the VM added by vagrant - you can 
+rename it to "Cloud BioLinux 32"
+do File->Export Appliance
+distribute the .ova you get from this operation
+anyone in any OS can import the .ova with File->Import Appliance on their 
+Virtualbox
+
+## making a Eucalyptus image
+
+we start with the Cloud BioLinux Virtualbox .vmdk (we can find its location 
+in the VM properties from the Virtualbox GUI). We might want to resize the 
+vmdk, since if we have set the disk of our Virtualbox VM to be 40G, we will 
+end up with a Eucalyptus image of that size. The best solution I found is 
+here (sort of a hack) :
+
+http://mtnbike.org/blog/?p=29 and the same here:
+http://www.my-guides.net/en/content/view/122/26/
+
+convert to raw .img by doing
+
+    qemu-img convert -O raw CloudBioLinux-32bit-disk1.vmdk 
+    CloudBioLinux-32bit-disk1.img
+
+folllowing the gparted operation we will have two partitions in our raw .img -
+one containing the Cloud BioLinux root filesystem partition which was reduced 
+in size, and one being simply un-allocated space. We want to extract the former partition, 
+which will be the one we eventually deploy to Eucalyptus using the commands:
+
+
+    sfdisk -l -uS CloudBioLinux-32bit.img 
+    Device Boot    Start       End   #sectors  Id  System
+    CloudBioLinux-32bit.img1   *      2048  34111487   34109440  83  Linux
+    ....
+
+dd if=CloudBioLinux-32bit.img of=CloudBioLinux-32bit.Eucalyptus.img skip=2048 count=34109440
+
+finally deploy to Eucalyptus via
+
+    uec-publish-img CloudBioLinux-32bit-disk1.img
+
