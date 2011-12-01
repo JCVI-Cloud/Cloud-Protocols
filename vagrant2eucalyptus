@@ -1,4 +1,4 @@
-# Converting Vagrant images to VirtualBox and Eucalyptus images
+#-- Converting Vagrant images to VirtualBox and Eucalyptus images
 
 (protocol steps tested in Ubuntu Natty)
 
