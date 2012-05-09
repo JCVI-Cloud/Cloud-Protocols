@@ -19,7 +19,8 @@ class BotoEuca(object):
         boto_ec2 = euca.get_ec2_connection() # standard boto.ec2.EC2Connection object
         # .... do stuff on local ec2
     """
-    def __init__(self):
+    def __init__(self,verbose=False):
+        self.verbose = verbose
         self.aws_access_key = os.environ['AWS_ACCESS_KEY']
         self.aws_secret_key = os.environ['AWS_SECRET_KEY']
         self.s3_url = urlparse(os.environ['S3_URL'])
@@ -35,6 +36,10 @@ class BotoEuca(object):
             is_secure = True
         else:
             is_secure = False
+        if self.verbose:
+            debug = 2
+        else:
+            debug = 0
         self.s3_conn = S3Connection(
                 aws_access_key_id = self.aws_access_key,
                 aws_secret_access_key = self.aws_secret_key,
@@ -42,7 +47,8 @@ class BotoEuca(object):
                 port = self.s3_url.port,
                 host = self.s3_url.hostname,
                 path = self.s3_url.path,
-                calling_format = calling_format
+                calling_format = calling_format,
+                debug = debug
          )
 
     def get_s3_connection(self):
@@ -55,6 +61,10 @@ class BotoEuca(object):
             is_secure = True
         else:
             is_secure = False
+        if self.verbose:
+            debug = 2
+        else:
+            debug = 0
         region = RegionInfo(endpoint=self.ec2_url.hostname,name=self.ec2_url.hostname)
         self.ec2_conn = EC2Connection(
                 aws_access_key_id = self.aws_access_key,
@@ -63,7 +73,8 @@ class BotoEuca(object):
                 host = self.ec2_url.hostname,
                 port = self.ec2_url.port,
                 path = self.ec2_url.path,
-                region = region
+                region = region,
+                debug = debug
         )
 
     def get_ec2_connection(self):
