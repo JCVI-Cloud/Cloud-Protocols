@@ -1,0 +1,78 @@
+# eucalyptus shortcuts
+edi() {
+    if [ -z "$1" ]; then
+        euca-describe-instances
+    else
+        euca-describe-instances | grep -P "$@"
+    fi
+}
+evol() {
+    if [ -z "$1" ]; then
+        euca-describe-volumes
+    else
+        euca-describe-volumes | fgrep "$1"
+    fi
+}
+eimg() {
+    if [ -z "$1" ]; then
+        euca-describe-images | fgrep emi | fgrep -v deregistered
+    else
+        euca-describe-images | fgrep emi | fgrep -v deregistered | fgrep "$1"
+    fi
+}
+alias euca-reset-ssh='for x in `seq -w 100 115`; do ssh-keygen -q -R 172.17.31.$x >/dev/null 2>/dev/null; done'
+alias ersync='rsync --rsh "ssh -i /Users/rrichter/.euca/rrichter.private"'
+essh () {
+    user=$1
+    host=$2
+    if [ -z "$host" ]; then
+        host=$1
+        user=$USER
+    fi
+    echo $host | fgrep -v -q '@'
+    has_user=$?
+    if [ "$has_user" == "0" ]; then
+        host="ubuntu@$host"
+    fi
+    ssh -i ~/.euca/$user.private $host
+}
+euca-delete-image () {
+    iid=$1
+    bucket_image=`euca-describe-images | grep $iid | cut -f 3 | sed -e 's~/~	~; s/\.manifest.xml$//'`
+    bucket=`echo "$bucket_image" | cut -f 1`
+    image=`echo "$bucket_image" | cut -f 2`
+    euca-deregister $iid && euca-delete-bundle -b $bucket -p $image
+}
+eready () {
+    inst="$1"
+    inst_cmd="euca-describe-instances | fgrep $inst"
+    edi=`eval "$inst_cmd"`
+    status=`echo "$edi" | cut -f 6`
+    while [ "running" != "$status" ]; do
+        echo -n "[30D$status        "
+        if [ -z "$status" -o "terminated" == "$status" ]; then
+            if [ -z "$status" ]; then
+                status='missing'
+            fi
+            echo "ERROR: $inst $status" >&2
+            return 1
+        fi
+        # echo -n .
+        sleep 5
+        edi=`eval "$inst_cmd"`
+        status=`echo "$edi" | cut -f 6`
+    done
+    public_ip=`echo "$edi" | cut -f 4`
+    status=`echo "$edi" | cut -f 6`
+    echo
+    echo "$inst $status at $public_ip"
+    ssh_ready_cmd="euca-get-console-output $inst| fgrep 'END SSH HOST KEY KEYS'" # specific to ubuntu with cloud-init
+    ssh_ready=$(eval "$ssh_ready_cmd")
+    while [ -z "$ssh_ready" ]; do
+        echo -n .
+        sleep 5
+        ssh_ready=$(eval "$ssh_ready_cmd")
+    done
+    echo
+    return 0
+} 
